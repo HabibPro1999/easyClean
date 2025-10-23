@@ -1,0 +1,65 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Build artifacts
+/asset-cleaner
+/dist/
+/build/
+/bin/
+
+# Dependency directories
+/vendor/
+
+# Go profiling files
+*.prof
+*.pprof
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+*.log.*
+
+# Test coverage
+coverage.txt
+coverage.html
+*.coverprofile
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Asset Cleaner specific
+.unusedassets.yaml        # User-specific config (use .unusedassets.example.yaml as template)
+scan-results.json         # Scan output files
+*-scan-results.json       # Any scan result variations
+
+# Development frameworks and tools
+.claude/                    # Claude Code commands and settings
+.specify/                   # Specify framework (project management)
