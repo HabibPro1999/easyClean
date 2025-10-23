@@ -1,0 +1,74 @@
+# Example configuration for Asset Cleaner
+# Copy this file to .unusedassets.yaml and customize for your project
+
+# Directories to scan for asset files
+asset_paths:
+  - public/
+  - src/assets/
+  - static/media/
+
+# File extensions to consider as assets
+extensions:
+  # Images
+  - .jpg
+  - .jpeg
+  - .png
+  - .gif
+  - .svg
+  - .webp
+  - .ico
+  - .bmp
+
+  # Fonts
+  - .ttf
+  - .woff
+  - .woff2
+  - .eot
+  - .otf
+
+  # Videos
+  - .mp4
+  - .webm
+  - .mov
+  - .avi
+  - .mkv
+
+  # Audio
+  - .mp3
+  - .wav
+  - .ogg
+  - .m4a
+  - .flac
+
+# Paths and patterns to exclude from scanning
+exclude_paths:
+  - node_modules/
+  - dist/
+  - build/
+  - .next/
+  - target/
+  - vendor/
+  - .git/
+  - __pycache__/
+  - "**/__tests__/**"
+  - "*.test.js"
+
+# Asset constant files to analyze (optional)
+# These files typically contain centralized asset path definitions
+constant_files:
+  - src/constants/assets.ts
+  - lib/assets.dart
+  - app/config/AssetPaths.swift
+
+# Base path variable names to track (optional)
+# Variables used for base path construction
+base_path_vars:
+  - ASSETS_BASE
+  - PUBLIC_URL
+  - ASSET_PREFIX
+
+# Advanced settings
+max_workers: 8              # Concurrent workers (0 = auto-detect CPU cores)
+follow_symlinks: false      # Follow symbolic links during scan
+show_progress: true         # Show progress bar during scan
+color_output: true          # Enable colored terminal output

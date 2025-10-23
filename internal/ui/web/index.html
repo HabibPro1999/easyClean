@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asset Cleaner - Review</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .assets-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            min-width: 200px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #5568d3;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .danger {
+            background: #ef4444;
+        }
+
+        .danger:hover {
+            background: #dc2626;
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .message-success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #6ee7b7;
+        }
+
+        .message-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state .icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        /* Card Grid Layout */
+        .assets-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .asset-card {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all 0.3s;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .asset-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .asset-card.selected {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .asset-preview {
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .asset-preview img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .asset-preview-fallback {
+            font-size: 64px;
+            opacity: 0.3;
+            position: absolute;
+        }
+
+        .asset-card-content {
+            padding: 16px;
+        }
+
+        .asset-card-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .asset-checkbox {
+            margin-top: 4px;
+            cursor: pointer;
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+        }
+
+        .asset-icon {
+            font-size: 32px;
+            flex-shrink: 0;
+        }
+
+        .asset-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .asset-filename {
+            font-weight: 600;
+            font-size: 16px;
+            color: #1f2937;
+            margin-bottom: 4px;
+            word-break: break-word;
+        }
+
+        .asset-path {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 8px;
+            word-break: break-all;
+        }
+
+        .asset-meta {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-unused {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-size {
+            background: #e0e7ff;
+            color: #4338ca;
+        }
+
+        .badge-category {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .view-toggle {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .view-toggle button {
+            padding: 8px 12px;
+            font-size: 12px;
+        }
+
+        .view-toggle button.active {
+            background: #667eea;
+        }
+
+        /* Table View (keep as alternative) */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            display: none;
+        }
+
+        table.active {
+            display: table;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: #f9fafb;
+            font-weight: 600;
+            color: #666;
+        }
+
+        tr:hover {
+            background: #f9fafb;
+        }
+
+        input[type="checkbox"] {
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+        }
+
+        @media (max-width: 768px) {
+            .assets-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .view-toggle {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 Asset Cleaner Review</h1>
+            <p>Review and manage unused assets</p>
+        </header>
+
+        <div class="stats" id="stats"></div>
+
+        <div class="assets-section">
+            <div class="controls">
+                <input type="text" id="search" placeholder="Search assets..." />
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button onclick="selectAll()">Select All</button>
+                    <button onclick="deselectAll()">Deselect All</button>
+                    <button class="danger" onclick="deleteSelected()" id="deleteBtn" disabled>
+                        Delete Selected
+                    </button>
+                </div>
+            </div>
+
+            <div id="message"></div>
+
+            <div id="assetsContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        let scanResults = null;
+        let selectedAssets = new Set();
+        let currentView = 'grid';
+
+        async function loadResults() {
+            try {
+                const response = await fetch('/api/results');
+                scanResults = await response.json();
+                renderStats();
+                renderAssets();
+            } catch (error) {
+                showMessage('Failed to load scan results: ' + error.message, 'error');
+            }
+        }
+
+        function renderStats() {
+            const stats = scanResults.statistics;
+            const projectTypeName = getProjectTypeName(scanResults.project_type);
+            const statsHtml = `
+                <div class="stat-card">
+                    <div class="stat-value">${stats.total_assets}</div>
+                    <div class="stat-label">Total Assets</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${stats.unused_count}</div>
+                    <div class="stat-label">Unused Assets</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${formatBytes(stats.unused_size_bytes)}</div>
+                    <div class="stat-label">Potential Savings</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${projectTypeName}</div>
+                    <div class="stat-label">Project Type</div>
+                </div>
+            `;
+            document.getElementById('stats').innerHTML = statsHtml;
+        }
+
+        function getProjectTypeName(type) {
+            const types = {
+                0: 'Unknown',
+                1: 'React',
+                2: 'Vue',
+                3: 'Angular',
+                4: 'Svelte',
+                5: 'React Native',
+                6: 'Flutter',
+                7: 'iOS',
+                8: 'Android',
+                9: 'Go',
+                10: 'Rust'
+            };
+            return types[type] || 'Unknown';
+        }
+
+        function renderAssets() {
+            // Combine all non-used assets: unused, potentially unused, and needs review
+            const assets = [
+                ...(scanResults.unused_assets || []),
+                ...(scanResults.potentially_unused_assets || []),
+                ...(scanResults.needs_review_assets || [])
+            ];
+            const search = document.getElementById('search').value.toLowerCase();
+
+            const filtered = assets.filter(asset =>
+                asset.relative_path.toLowerCase().includes(search)
+            );
+
+            if (filtered.length === 0) {
+                document.getElementById('assetsContainer').innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📁</div>
+                        <h3>No unused assets found</h3>
+                        <p>All assets are being used or no assets match your search.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            renderGridView(filtered);
+        }
+
+        function renderGridView(assets) {
+            const gridHtml = `
+                <div class="assets-grid">
+                    ${assets.map(asset => {
+                        const filename = asset.relative_path.split('/').pop();
+                        const icon = getFileIcon(asset.category);
+                        const isSelected = selectedAssets.has(asset.path);
+
+                        // Robust image detection: check category string AND file extension
+                        const ext = asset.relative_path.split('.').pop().toLowerCase();
+                        const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico', 'bmp'];
+                        const isImage = asset.category === 'Image' || imageExtensions.includes(ext);
+
+                        const previewUrl = `/api/asset?path=${encodeURIComponent(asset.path)}`;
+
+                        return `
+                            <div class="asset-card ${isSelected ? 'selected' : ''}" onclick="toggleAssetCard(event, '${asset.path}')">
+                                <div class="asset-preview">
+                                    ${isImage ? `
+                                        <img src="${previewUrl}"
+                                             alt="${filename}"
+                                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                                             loading="lazy">
+                                        <div class="asset-preview-fallback" style="display:none">${icon}</div>
+                                    ` : `
+                                        <div class="asset-preview-fallback">${icon}</div>
+                                    `}
+                                </div>
+                                <div class="asset-card-content">
+                                    <div class="asset-card-header">
+                                        <input type="checkbox"
+                                               class="asset-checkbox"
+                                               onchange="toggleAsset('${asset.path}')"
+                                               ${isSelected ? 'checked' : ''}
+                                               onclick="event.stopPropagation()" />
+                                        <div class="asset-info">
+                                            <div class="asset-filename">${filename}</div>
+                                            <div class="asset-path">${asset.relative_path}</div>
+                                        </div>
+                                    </div>
+                                    <div class="asset-meta">
+                                        <span class="badge badge-size">${formatBytes(asset.size_bytes)}</span>
+                                        <span class="badge badge-category">${getCategoryLabel(asset.category)}</span>
+                                        <span class="badge badge-unused">${getStatusLabel(asset.status)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+            document.getElementById('assetsContainer').innerHTML = gridHtml;
+            updateDeleteButton();
+        }
+
+        function getFileIcon(category) {
+            const icons = {
+                'Image': '🖼️',
+                'Font': '🔤',
+                'Video': '🎬',
+                'Audio': '🎵',
+                'Document': '📄',
+                'Other': '📎'
+            };
+            return icons[category] || '📎';
+        }
+
+        function getCategoryLabel(category) {
+            const labels = {
+                0: 'Image', 1: 'Font', 2: 'Video', 3: 'Audio', 4: 'Other',
+                'Image': 'Image', 'Font': 'Font', 'Video': 'Video',
+                'Audio': 'Audio', 'Other': 'Other'
+            };
+            return labels[category] || category;
+        }
+
+        function getStatusLabel(status) {
+            const labels = {
+                0: 'Used', 1: 'Unused', 2: 'Potentially Unused', 3: 'Needs Review',
+                'Used': 'Used', 'Unused': 'Unused',
+                'PotentiallyUnused': 'Potentially Unused',
+                'NeedsManualReview': 'Needs Review'
+            };
+            return labels[status] || status;
+        }
+
+        function toggleAssetCard(event, path) {
+            if (event.target.classList.contains('asset-checkbox')) {
+                return;
+            }
+            toggleAsset(path);
+            renderAssets();
+        }
+
+        function toggleAsset(path) {
+            if (selectedAssets.has(path)) {
+                selectedAssets.delete(path);
+            } else {
+                selectedAssets.add(path);
+            }
+            updateDeleteButton();
+        }
+
+        function selectAll() {
+            const assets = scanResults.unused_assets || [];
+            assets.forEach(asset => selectedAssets.add(asset.path));
+            renderAssets();
+        }
+
+        function deselectAll() {
+            selectedAssets.clear();
+            renderAssets();
+        }
+
+        function updateDeleteButton() {
+            const btn = document.getElementById('deleteBtn');
+            btn.disabled = selectedAssets.size === 0;
+            btn.textContent = selectedAssets.size > 0
+                ? `Delete ${selectedAssets.size} Selected`
+                : 'Delete Selected';
+        }
+
+        async function deleteSelected() {
+            if (selectedAssets.size === 0) return;
+
+            if (!confirm(`Are you sure you want to delete ${selectedAssets.size} file(s)?\n\nThis action cannot be undone (but files can be restored from git if tracked).`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ paths: Array.from(selectedAssets) })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage(
+                        `Successfully deleted ${result.deleted_count} file(s) (${formatBytes(result.total_freed)} freed)`,
+                        'success'
+                    );
+                    selectedAssets.clear();
+                    await loadResults();
+                } else {
+                    showMessage(
+                        `Deleted ${result.deleted_count} file(s), but ${result.errors.length} error(s) occurred`,
+                        'error'
+                    );
+                }
+            } catch (error) {
+                showMessage('Failed to delete files: ' + error.message, 'error');
+            }
+        }
+
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.className = `message message-${type}`;
+            messageDiv.textContent = text;
+            setTimeout(() => {
+                messageDiv.className = '';
+                messageDiv.textContent = '';
+            }, 5000);
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        // Search functionality
+        document.getElementById('search').addEventListener('input', renderAssets);
+
+        // Load data on page load
+        loadResults();
+    </script>
+</body>
+</html>
