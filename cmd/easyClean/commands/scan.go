@@ -81,7 +81,7 @@ func runScan(cmd *cobra.Command, args []string) error {
 
 	// Print header
 	if !quiet {
-		ui.PrintHeader("Asset Cleaner", "1.0.0")
+		ui.PrintHeader("easyClean", "1.0.1")
 	}
 
 	// Detect project type
