@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/HabibPro1999/easyClean/internal/models"
 )
@@ -15,39 +17,66 @@ import (
 //go:embed web/*
 var webFiles embed.FS
 
-var currentScanResult *models.ScanResult
+// ReviewServer wraps an HTTP server for the review UI
+type ReviewServer struct {
+	server     *http.Server
+	scanResult *models.ScanResult
+}
 
-// StartWebServer starts the web UI server
-func StartWebServer(result *models.ScanResult, host string, port int) error {
-	currentScanResult = result
+// NewReviewServer creates a new review server instance
+func NewReviewServer(result *models.ScanResult, host string, port int) (*ReviewServer, error) {
+	rs := &ReviewServer{
+		scanResult: result,
+	}
 
 	// Serve embedded static files from web subdirectory
 	webFS, err := fs.Sub(webFiles, "web")
 	if err != nil {
-		return fmt.Errorf("failed to load web files: %w", err)
+		return nil, fmt.Errorf("failed to load web files: %w", err)
 	}
-	http.Handle("/", http.FileServer(http.FS(webFS)))
 
-	// API endpoints
-	http.HandleFunc("/api/results", handleGetResults)
-	http.HandleFunc("/api/delete", handleDelete)
-	http.HandleFunc("/api/asset", handleServeAsset)
+	// Create HTTP mux
+	mux := http.NewServeMux()
+	mux.Handle("/", http.FileServer(http.FS(webFS)))
 
-	addr := fmt.Sprintf("%s:%d", host, port)
-	return http.ListenAndServe(addr, nil)
+	// API endpoints (use closures to access scanResult)
+	mux.HandleFunc("/api/results", rs.handleGetResults)
+	mux.HandleFunc("/api/delete", rs.handleDelete)
+	mux.HandleFunc("/api/asset", rs.handleServeAsset)
+
+	// Create HTTP server
+	rs.server = &http.Server{
+		Addr:         fmt.Sprintf("%s:%d", host, port),
+		Handler:      mux,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	return rs, nil
 }
 
-func handleGetResults(w http.ResponseWriter, r *http.Request) {
+// Start starts the web server (blocking)
+func (rs *ReviewServer) Start() error {
+	return rs.server.ListenAndServe()
+}
+
+// Shutdown gracefully shuts down the server
+func (rs *ReviewServer) Shutdown(ctx context.Context) error {
+	return rs.server.Shutdown(ctx)
+}
+
+func (rs *ReviewServer) handleGetResults(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(currentScanResult)
+	json.NewEncoder(w).Encode(rs.scanResult)
 }
 
-func handleDelete(w http.ResponseWriter, r *http.Request) {
+func (rs *ReviewServer) handleDelete(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -77,7 +106,7 @@ func handleDelete(w http.ResponseWriter, r *http.Request) {
 	for _, path := range request.Paths {
 		// Find asset in scan results
 		var assetToDelete *models.AssetFile
-		for _, asset := range currentScanResult.UnusedAssets {
+		for _, asset := range rs.scanResult.UnusedAssets {
 			if asset.Path == path || asset.RelativePath == path {
 				assetToDelete = &asset
 				break
@@ -115,7 +144,7 @@ func handleDelete(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func handleServeAsset(w http.ResponseWriter, r *http.Request) {
+func (rs *ReviewServer) handleServeAsset(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -129,14 +158,14 @@ func handleServeAsset(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Security: Validate the path is in our scan results (whitelist approach)
-	if currentScanResult == nil {
+	if rs.scanResult == nil {
 		http.Error(w, "No scan results available", http.StatusNotFound)
 		return
 	}
 
 	// Check if the requested path is in our asset list
 	isValidAsset := false
-	for _, asset := range currentScanResult.Assets {
+	for _, asset := range rs.scanResult.Assets {
 		if asset.Path == assetPath {
 			isValidAsset = true
 			break

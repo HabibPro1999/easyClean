@@ -24,7 +24,7 @@ unused asset files (images, fonts, videos, etc.) from codebases.
 
 It uses smart scanning with multi-pattern reference detection and supports
 multiple project types (React, Vue, Flutter, iOS, Android).`,
-	Version: "1.0.0",
+	Version: "1.0.1",
 }
 
 // Execute runs the root command

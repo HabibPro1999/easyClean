@@ -62,3 +62,5 @@ temp/
 # Development frameworks and tools
 .claude/                    # Claude Code commands and settings
 .specify/                   # Specify framework (project management)
+FRAMEWORK_DETECTION.md
+MULTI_PROJECT_REVIEW.md

@@ -13,17 +13,31 @@ import (
 
 // ReferenceFinder scans source files for asset references
 type ReferenceFinder struct {
-	config   *models.ProjectConfig
-	root     string
-	patterns []parser.ReferencePattern
+	config          *models.ProjectConfig
+	root            string
+	patterns        []parser.ReferencePattern
+	projectType     models.ProjectType
+	patternProvider parser.PatternProvider
 }
 
 // NewReferenceFinder creates a new ReferenceFinder instance
 func NewReferenceFinder(root string, config *models.ProjectConfig) *ReferenceFinder {
+	// Use project type from config, or Unknown if not set
+	projectType := config.ProjectType
+	if projectType == models.ProjectTypeUnknown && config.AutoDetectProjectType {
+		// Auto-detection should be done before creating ReferenceFinder
+		// For now, fallback to Unknown
+		projectType = models.ProjectTypeUnknown
+	}
+
+	provider := parser.GetPatternProvider(projectType)
+
 	return &ReferenceFinder{
-		config:   config,
-		root:     root,
-		patterns: parser.GetAllPatterns(),
+		config:          config,
+		root:            root,
+		patterns:        provider.GetPatterns(),
+		projectType:     projectType,
+		patternProvider: provider,
 	}
 }
 
@@ -71,28 +85,55 @@ var sourceExtensions = map[string]bool{
 	".vue": true, ".svelte": true,
 	".css": true, ".scss": true, ".sass": true, ".less": true,
 	".html": true, ".htm": true,
-	".dart": true, // Flutter/Dart files
+	".dart": true, ".yaml": true, // Flutter/Dart files
 	".swift": true,
 	".kt": true, ".java": true,
 	".go": true,
 	".rs": true,
-	// Note: YAML files (pubspec.yaml) excluded - directory declarations don't indicate usage
 }
 
 // isSourceFile checks if a file is a source code file
 func (rf *ReferenceFinder) isSourceFile(path string) bool {
-	return sourceExtensions[filepath.Ext(path)]
+	ext := filepath.Ext(path)
+
+	// Check framework-specific extensions first
+	supportedExts := rf.patternProvider.SupportedFileExtensions()
+	for _, supported := range supportedExts {
+		if ext == supported {
+			return true
+		}
+	}
+
+	// Fallback to generic source extensions
+	return sourceExtensions[ext]
 }
 
 // scanFile scans a single file for asset references
 func (rf *ReferenceFinder) scanFile(path string) ([]*models.Reference, error) {
+	var references []*models.Reference
+
+	// Check if we should use AST parsing for this file
+	ext := filepath.Ext(path)
+	useAST := rf.patternProvider.UseASTParsing() &&
+		(ext == ".js" || ext == ".jsx" || ext == ".ts" || ext == ".tsx")
+
+	if useAST {
+		// Use AST parser for deep analysis
+		astParser := parser.NewASTParser(path)
+		astRefs, err := astParser.ParseFile()
+		if err == nil && len(astRefs) > 0 {
+			references = append(references, astRefs...)
+		}
+		// Continue with regex patterns as fallback/supplement
+	}
+
+	// Regex-based scanning (works for all files)
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return references, err // Return AST results if available
 	}
 	defer file.Close()
 
-	var references []*models.Reference
 	scanner := bufio.NewScanner(file)
 	lineNumber := 0
 
@@ -124,7 +165,14 @@ func (rf *ReferenceFinder) scanFile(path string) ([]*models.Reference, error) {
 		}
 	}
 
-	return references, scanner.Err()
+	if err := scanner.Err(); err != nil {
+		return references, err
+	}
+
+	// De-duplicate references (AST + regex may find same references)
+	references = rf.deduplicateReferences(references)
+
+	return references, nil
 }
 
 // isCommentLine checks if a line is primarily a comment
@@ -240,7 +288,7 @@ func (rf *ReferenceFinder) tryBasenameMatch(cleaned string) string {
 // stringToRefType converts a string type to ReferenceType
 func (rf *ReferenceFinder) stringToRefType(typeStr string) models.ReferenceType {
 	switch typeStr {
-	case "Import":
+	case "Import", "DynamicImport":
 		return models.RefTypeImport
 	case "CSSUrl":
 		return models.RefTypeCSSUrl
@@ -255,4 +303,21 @@ func (rf *ReferenceFinder) stringToRefType(typeStr string) models.ReferenceType 
 	default:
 		return models.RefTypeStringLiteral
 	}
+}
+
+// deduplicateReferences removes duplicate references (same file + line + matched text)
+func (rf *ReferenceFinder) deduplicateReferences(refs []*models.Reference) []*models.Reference {
+	seen := make(map[string]bool)
+	var unique []*models.Reference
+
+	for _, ref := range refs {
+		// Create a key from source file, line number, and matched text
+		key := filepath.Join(ref.SourceFile, string(rune(ref.LineNumber)), ref.MatchedText)
+		if !seen[key] {
+			seen[key] = true
+			unique = append(unique, ref)
+		}
+	}
+
+	return unique
 }
